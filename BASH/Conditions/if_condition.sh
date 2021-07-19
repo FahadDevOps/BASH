@@ -1,6 +1,6 @@
-!/bin/bash
+#!/bin/bash
 
-echo -n "Please, enter the numbe: "
+echo -n "Please, enter the number: "
 read numb
 
 if [[ $numb -gt 1 ]]
