@@ -1,0 +1,134 @@
+eksctl create cluster --name dev --region us-east-1 --zones=us-east-1a,us-east-1b,us-east-1d --nodegroup-name standard-workers --node-type t3.medium --nodes 3 --nodes-min 1 --nodes-max 4 --managed
+kubectl create configmap env-configmap --from-env-file=env-configmap.yaml
+kubectl create secret generic env-secret --from-env-file=env-secret.yaml
+kubectl expose deployment udagram-reverseproxy  --type=LoadBalancer --name=publicreverseproxy
+kubectl expose deployment udagram-frontend  --type=LoadBalancer --name=publicfrontend
+
+//////////////////////////////////////////////////////////Important Paths///////////////////////////////
+
+/opt/cni/bin >> binary of network vendor(plugins) like flunnel
+/etc/cni/net.d >> ( configured plugins )
+/etc/kubernetes/manifests >> Static pod path
+/etc/kubernetes/my-scheduler-config.yaml >> default schduler Path
+$HOME/.kube/config >> kubeconfig File
+/var/lib/kubelet/kubelet.conf 
+//////////////////////////////////Core Concepts///////////////////////////
+
+k scale replicas=6 replicaset myapp 
+k scale replicas=6 -f replicaset definition.yml
+k config set context $( kubectl config current context) --namespace=dev
+//////////////////////////////////application life-cycle/////////////////////
+
+k rollout status deploy/app
+k rollout history deploy/app
+k set image deploy/app nginx=nginx:1.9
+k rollout undo deploy/app
+
+k create cm eslam --from-literal=key1=value1  --from-literal=key2=value2
+k create cm eslam --from-file=<Path-to-file>
+
+k create secret generic eslam --from-literal=key1=value1  --from-literal=key2=value2
+k create secret generic eslam --from-file=<Path-to-file>
+echo -n 'root' | base 64  >> encode
+echo -n 'ysdydy=0' | base 64 --decode >> decode
+kubectl scale --replicas=3 deploy/nginx
+
+k drain node1
+k cordon node2
+k uncordon node1
+kubeadm upgrade plan
+
+
+//////////////////////////cluster_upgrade////////////////////////
+               /////////master////////////
+1- apt update 
+2- kubeadm upgrade plan
+3- apt-get -y upgrade kubeadm=1.12.0-00
+4- kubeadm upgrade apply v1.12.0-00
+5- apt-get upgrade -y kubelet=1.12.0-00
+6- systemctl restart kubelet
+
+               /////////worker///////////
+1- k drain node1 --ignore-daemonsets
+2- apt update , k upgrade plan
+3- apt-get -y upgrade kubeadm=1.12.0-00
+4- sudo kubeadm upgrade node
+5- apt-get -y upgrade kubelet=1.12.0-00
+6- sudo systemctl daemon-reload
+7- sudo systemctl restart kubelet
+8- k uncordon node1
+////////////////////////////////////cluster maintainance/////////////////
+k get all -A -o yaml > backup.yaml  (resource configs)
+ETCDCTL_API=3 etcdctl snapshot save backup.db  --endpoints=xxxx:2379  --cacert=xxx.cacrt --cert=xxx.crt --key=xxx.key
+ETCDCTL_API=3 etcdctl snapshot status backup.db
+
+ETCDCTL_API=3 etcdctl snapshot restore backup.db --data-dir /var/lib/etcd-from-backup
+systemctl daemon-reload
+service etcd restart
+service kube-apiserver start 
+
+//////////////////////////////////security////////////////////////////////
+
+                             /////SSL//////
+
+1- openssl genrsa -out eslam.key 2048
+2- openssl req -key -new eslam.key -subj"/CN=kube-admin/OU=system:masters" -out eslam.csr
+3- openssl x509 -req -in eslam.csr –CA ca.crt -CAkey ca.key -out eslam.crt
+
+openssl x509 -in eslam.crt -noout -text   >> certificate details
+k get  csr
+k certificate approve jane
+cat jane.csr | base64 -w 0
+
+
+                             ///context - kubeconfig_file////////
+k config view 
+k config view -kubeconfig=my-custom-config
+k config use-context prod-user@production
+
+                               ///Authorizaion///
+k get roles
+k get rolebindings
+k describe role developer
+k describe rolebinding developer-binding
+k auth can-i create deployments 
+k auth can-i create deployments --as eslam
+k auth can-i create deployments --as eslam -n test
+k api-resources 
+
+kubectl create secret docker-registry regcred \
+--docker-server= private-registry.io \
+--docker-username= registry-user \
+--docker-password= registry-password \
+--docker-email= registry-user@org.com
+
+///////////////////////////////////////////////////////storage//////////////////////////////
+
+Retain
+Recycle
+Delete
+
+//////////////////////////////////////////////////////Network///////////////////////////////
+
+ip link 
+ip addr
+ip addr add ip_address dev IFace(eth0)
+route
+ip route add des_ip via gateway_ip
+ip link set dev v-net-0 up
+cat /proc/sys/net/ipv4/ip_forward(0) 
+echo 1 > /proc/sys/net/ipv4/ip_forward
+/etc/sysctl.conf
+kubectl expose deployment nginx --port=80 --type=NodePort
+
+//////////////////////////////////////////Troubleshooting/////////////////
+
+kubectl logs web -f --previous
+sudo journalctl -u kube-apiserver
+openssl x509 -in /var/lib/kubelet/worker-1.crt -text
+
+//////////////////////////////////////////Taint and Tolaration//////////////////////////////
+
+k taint nodes node-name key=value:taint-effect
+taint-effect(NoSchedule, PreferNoSchedule, NoExecute)
+kubectl label nodes <node-name> <label-key1>=<label-value1>,<label-key2>=<label-value2>
